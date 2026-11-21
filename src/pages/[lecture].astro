@@ -1,0 +1,41 @@
+---
+import {getCollection,render} from 'astro:content';
+import '../style.css';
+import SeekTraces from '../components/SeekTraces.astro';
+import Simulator from '../components/Simulator.astro';
+export async function getStaticPaths(){
+ const all=(await getCollection('lessons')).sort((a,b)=>a.data.id-b.data.id);
+ return all.map(entry=>({params:{lecture:entry.id},props:{entry,all:all.filter(item=>item.data.subject.code===entry.data.subject.code)}}));
+}
+const {entry,all}=Astro.props;
+const {id,title,subtitle,lab,quiz}=entry.data;
+const {Content}=await render(entry);
+const raw=import.meta.glob<string>('../../content/*.md',{query:'?raw',import:'default',eager:true});
+const base=import.meta.env.BASE_URL.replace(/\/$/,'');
+const {subject,source}=entry.data;
+const hasSimulator=subject.code==='CPE333' && id>=7 && id<=12;
+const position=all.findIndex(item=>item.id===entry.id);
+
+---
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>{title} · zen</title>
+<script is:inline>try{document.documentElement.dataset.theme=localStorage.getItem('os-theme') || 'dark'}catch{}</script>
+</head><body>
+<header><div class="top"><a class="brand" href={`${base}/`}><span aria-hidden="true">▤</span> zen</a><span class="mono course">{subject.code} / {subject.title}</span><button id="theme" type="button">Switch theme</button></div></header>
+<main class="layout"><div class="hero"><a href={`${base}/`}>← Library</a><h1>{title}</h1><p>{subtitle}</p></div>
+<nav class="toolbar" aria-label="Lecture sections"><a href="#learn">Learn</a><a href="#lab">Visual lab</a>{hasSimulator && <a href="#simulator">Simulator</a>}<a href="#test">Test</a>{source && <a href={`${base}/sources/${source}`} download>Download lecture PDF</a>}<button id="print" type="button">Print / PDF</button><a id="markdown" download={`lecture-${id}.md`}>Markdown ↓</a></nav>
+<section id="lab" aria-labelledby="lab-title"><h2 id="lab-title">{lab.title}</h2><div class="lab-panel" data-lab>
+ {lab.frames.map((frame,i)=><div class="frame" data-frame hidden={i!==0}><p class="step-number">{i+1} of {lab.frames.length}</p><div class="nodes">{lab.nodes.map((node,k)=><div class:list={['node',{active:k===frame.focus}]}><span class="mono">{node}</span><strong>{frame.states[k]}</strong></div>)}</div><p class="caption">{frame.caption}</p></div>)}
+ <div class="controls"><button data-step="-1" disabled>← Back</button><button data-step="1">Next step →</button></div><span class="sr" data-announcement aria-live="polite"></span>
+</div></section>
+{hasSimulator && <Simulator id={id} />}
+<section id="learn"><article><Content /></article></section>
+{entry.data.seekTraces && <SeekTraces traces={entry.data.seekTraces} />}
+<section id="test"><h2>Test yourself</h2><form id="quiz">{quiz.map((q,i)=><fieldset data-answer={q.answer}><legend>{i+1}. {q.prompt}</legend>{q.choices.map((choice,k)=><label><input type="radio" required name={`q${i}`} value={k}/> {choice}</label>)}<p class="feedback" hidden><strong></strong> {q.explanation}</p></fieldset>)}<div class="controls"><button type="submit">Check answers</button><button type="reset">Reset</button><output id="score" aria-live="polite"></output></div></form></section>
+<footer><nav aria-label="Adjacent lessons">{[all[position-1],all[position+1]].filter(Boolean).map(item=><a href={`${base}/${item.id}/`}>{item.id===all[position-1]?.id?'← Previous lesson':'Next lesson →'}</a>)}</nav></footer></main>
+<template id="study-source">{raw[`../../content/${entry.id}.md`]}</template>
+<script>
+ import '../study';
+ import '../diagrams';
+</script>
+</body></html>

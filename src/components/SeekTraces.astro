@@ -1,0 +1,33 @@
+---
+interface Props { traces: { label: string; stops: number[] }[] }
+const {traces}=Astro.props;
+const max=Math.max(1,...traces.flatMap(t=>t.stops));
+const steps=Math.max(1,...traces.map(t=>t.stops.length-1));
+const x=(n:number)=>32+n/max*276;
+const y=(n:number)=>38+n/steps*134;
+---
+<section class="seek-traces" aria-labelledby="seek-title">
+<h2 id="seek-title">Compare disk head paths</h2>
+<p>Follow each trace downward from the starting cylinder. Horizontal distance is how far the head moves; every reversal adds travel.</p>
+<div class="charts">{traces.map(({label,stops})=>{
+ const distance=stops.slice(1).reduce((sum,stop,i)=>sum+Math.abs(stop-stops[i]),0);
+ return <figure>
+  <figcaption><strong>{label}</strong><span>{distance} cylinders moved</span></figcaption>
+  <svg viewBox="0 0 340 190" role="img" aria-label={`${label}: ${stops.join(' to ')}; ${distance} cylinders moved`}>
+   <text x="170" y="14" text-anchor="middle">Cylinder number</text>
+   {[0,Math.floor(max/2),max].map(tick=><g><line x1={x(tick)} x2={x(tick)} y1="35" y2="177"/><text x={x(tick)} y="30" text-anchor="middle">{tick}</text></g>)}
+   <polyline points={stops.map((stop,i)=>`${x(stop)},${y(i)}`).join(' ')}/>
+   {stops.map((stop,i)=><circle cx={x(stop)} cy={y(i)} r={i===0?5:3} class:list={{start:i===0}}/>)}
+  </svg>
+  <p class="mono route">{stops.join(' → ')}</p>
+ </figure>;
+})}</div>
+</section>
+<style>
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:.8rem}
+figure{margin:0;background:var(--paper);border:1px solid var(--rule);padding:.7rem;break-inside:avoid}
+figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;flex-wrap:wrap;margin:0;color:var(--ink)}
+figcaption span,.route{color:var(--muted)}.route{margin:.3rem 0 0}
+svg{display:block;width:100%;height:auto} text{fill:var(--muted);font:12px Consolas,monospace} line{stroke:var(--rule);stroke-dasharray:3 3} polyline{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round}circle{fill:var(--accent)}circle.start{fill:var(--heading)}
+@media print{figure{background:white}figcaption,figcaption span,.route{color:#222}text{fill:#222}polyline{stroke:#222}circle{fill:#222}circle.start{fill:#222}}
+</style>

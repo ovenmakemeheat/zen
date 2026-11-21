@@ -1,0 +1,1 @@
+{"name":"zen","private":true,"type":"module","scripts":{"dev":"astro dev","build":"astro build","preview":"astro preview","test":"node --test scripts/*.test.mjs","sources":"node scripts/sources.mjs"},"dependencies":{"astro":"^7.4.13","mermaid":"^12.3.0"},"devDependencies":{"wrangler":"^4.166.0"}}

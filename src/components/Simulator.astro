@@ -1,0 +1,24 @@
+---
+const {id}=Astro.props;
+const titles:Record<number,string>={7:'Schedule the threads',8:'Race for the lock',9:'Operate the circular buffer',10:'Try a resource grant',11:'Compare your own disk queue',12:'Fail the same drives in both arrays'};
+---
+{titles[id] && <section id="simulator" data-sim={id} aria-labelledby="sim-title">
+<h2 id="sim-title">{titles[id]}</h2>
+<div class="sim-panel"><div class="controls">
+{id===8 && <label>Lock <select data-mode><option value="split">Separate check and write</option><option value="tas">Test-and-Set</option><option value="cas">Compare-and-Swap</option></select></label>}
+{(id===7||id===8) && ['A','B'].map((name,i)=><button type="button" data-action={i}>Step thread {name}</button>)}
+{id===9 && <><label>Wait order <select data-mode><option value="correct">Permit first</option><option value="wrong">Mutex first</option></select></label><button type="button" data-action="put">Produce</button><button type="button" data-action="get">Consume</button></>}
+{id===10 && <label>Grant one unit to <select data-mode><option value="0">Nobody (baseline)</option><option value="3">P3</option><option value="4">P4</option></select></label>}
+{id===11 && <form class="controls"><label>Queue (comma-separated)<input name="queue" value="98,183,37,122,14,124,65,67" required /></label><label>Start <input name="head" type="number" min="0" max="199" value="53" required /></label><label>Direction <select name="direction"><option value="down">Down</option><option value="up">Up</option></select></label><button>Plot paths</button></form>}
+{id===12 && [0,1,2,3].map(n=><label><input type="checkbox" data-drive={n}/> Fail D{n}</label>)}
+{[7,8,9,12].includes(id) && <button type="button" data-action="reset">Reset</button>}
+</div><p data-status role="status"></p><div data-board></div></div>
+</section>}
+<script>
+ import '../sim-ui.mjs';
+</script>
+<style>
+.sim-panel{margin-top:1rem;padding:1rem;border:1px solid var(--rule);background:var(--paper)}
+label{display:inline-flex;align-items:center;gap:.4rem;flex-wrap:wrap}input,select{max-width:100%;font:inherit}input[name=head]{width:5rem}
+@media print{#simulator{display:none}}
+</style>

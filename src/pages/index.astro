@@ -1,0 +1,75 @@
+---
+import {getCollection} from 'astro:content';
+import '../style.css';
+const base=import.meta.env.BASE_URL.replace(/\/$/,'');
+const lessons=(await getCollection('lessons')).sort((a,b)=>a.data.id-b.data.id || a.data.title.localeCompare(b.data.title));
+const subjects=Map.groupBy(lessons,entry=>entry.data.subject.code);
+const tags=[...new Set(lessons.flatMap(entry=>entry.data.tags))].sort((a,b)=>a.localeCompare(b));
+---
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>Study library · zen</title>
+<script is:inline>try{document.documentElement.dataset.theme=localStorage.getItem('os-theme') || 'dark'}catch{}</script>
+</head><body>
+<header><div class="top"><a class="brand" href={`${base}/`}><span aria-hidden="true">▤</span> zen</a><button id="theme" type="button">Switch theme</button></div></header>
+<main class="layout">
+ <div class="hero"><h1>Study library</h1><p>Browse by subject or find a topic to review. Each lesson brings together notes, visual walkthroughs, and practice questions.</p></div>
+ <div class="filters" hidden>
+  <label>Search library <input id="query" type="search" placeholder="e.g. deadlock or CPE333" /></label>
+  <label>Subject <select id="subject"><option value="">All subjects</option>{[...subjects].map(([code, entries])=><option value={code}>{entries[0].data.subject.title}</option>)}</select></label>
+  <label>Tag <select id="tag"><option value="">All tags</option>{tags.map(t=><option>{t}</option>)}</select></label>
+  <button id="clear" type="button">Clear</button>
+ </div>
+ <p class="count mono" id="count" role="status">{lessons.length} lessons · {subjects.size} {subjects.size===1?'subject':'subjects'}</p>
+ {[...subjects].sort(([a],[b])=>a.localeCompare(b)).map(([code,entries])=><section data-group={code} class="shelf">
+  <div class="shelf-heading"><h2>{entries[0].data.subject.title}</h2><span class="mono">{code}</span></div>
+  <ul>{entries.map(({id,data})=><li data-entry data-tags={JSON.stringify(data.tags)} data-search={[data.title,data.subtitle,data.subject.code,data.subject.title,`Lecture ${data.id}`,...data.tags].join(' ').toLowerCase()}>
+   <span class="mono number" aria-label={`Lecture ${data.id}`}>{String(data.id).padStart(2,'0')}</span>
+   <div><h3><a href={`${base}/${id}/`}>{data.title}</a></h3><p>{data.subtitle}</p>
+    <div class="tags" aria-label="Topics">{data.tags.map(tag=><button type="button" disabled data-tag={tag} aria-pressed="false">{tag}</button>)}</div>
+   </div>
+  </li>)}</ul>
+ </section>)}
+ <p id="empty" hidden>No lessons match. Try another search or clear the filters.</p>
+</main>
+<script>
+ const filters=document.querySelector<HTMLElement>('.filters')!;
+ const query=document.querySelector<HTMLInputElement>('#query')!;
+ const subject=document.querySelector<HTMLSelectElement>('#subject')!;
+ const tag=document.querySelector<HTMLSelectElement>('#tag')!;
+ const groups=[...document.querySelectorAll<HTMLElement>('[data-group]')].map(group=>({group,entries:[...group.querySelectorAll<HTMLElement>('[data-entry]')].map(entry=>({entry,tags:JSON.parse(entry.dataset.tags ?? '[]') as string[]}))}));
+ const buttons=[...document.querySelectorAll<HTMLButtonElement>('[data-tag]')];
+ function filter(){
+  const words=query.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let lessons=0, subjects=0;
+  for(const {group,entries} of groups){
+   let matches=0;
+   for(const {entry,tags} of entries){
+    const show=(!subject.value || subject.value===group.dataset.group) && (!tag.value || tags.includes(tag.value)) && words.every(w=>entry.dataset.search?.includes(w));
+    entry.hidden=!show;
+    if(show)matches++;
+   }
+   group.hidden=matches===0;
+   if(matches)subjects++;
+   lessons+=matches;
+  }
+  document.querySelector('#count')!.textContent=`${lessons} ${lessons===1?'lesson':'lessons'} · ${subjects} ${subjects===1?'subject':'subjects'}`;
+  document.querySelector<HTMLElement>('#empty')!.hidden=lessons!==0;
+  for(const button of buttons) button.setAttribute('aria-pressed',String(button.dataset.tag===tag.value));
+ }
+ query.addEventListener('input',filter);subject.addEventListener('change',filter);tag.addEventListener('change',filter);
+ for(const button of buttons){button.disabled=false;button.onclick=()=>{tag.value=tag.value===button.dataset.tag?'':button.dataset.tag ?? '';filter();tag.focus();};}
+ document.querySelector<HTMLButtonElement>('#clear')!.onclick=()=>{query.value=subject.value=tag.value='';filter();query.focus();};
+ document.querySelector<HTMLButtonElement>('#theme')!.onclick=()=>{
+  const theme=document.documentElement.dataset.theme==='light'?'dark':'light';
+  document.documentElement.dataset.theme=theme;
+  try{localStorage.setItem('os-theme',theme);}catch{}
+ };
+ filters.hidden=false;
+ filter();
+</script>
+<style>
+.hero>p:last-child{max-width:62ch}.filters{display:flex;align-items:end;flex-wrap:wrap;gap:.65rem;padding:1rem;background:var(--paper);border:1px solid var(--rule)}
+.filters label{display:grid;gap:.25rem;font-size:.9rem}.filters label:first-child{flex:1;min-width:min(100%,200px)}.filters input,.filters select{width:100%;min-height:40px;padding:.45rem;color:var(--ink);background:var(--page);border:1px solid var(--rule);font:inherit}.filters button{min-height:40px}.count,.shelf-heading span,.number,.shelf p{color:var(--muted)}
+.shelf{padding-top:.8rem}.shelf-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:.4rem 1rem;border-bottom:1px solid var(--rule);padding-bottom:.75rem}.shelf ul{padding:0;margin:0;list-style:none}.shelf li{display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.55rem;padding:1rem 0;border-bottom:1px solid var(--rule)}.shelf li:last-child{border:0}.shelf h3,.shelf p{margin:0}.shelf h3 a{color:var(--ink)}.shelf h3 a:hover{color:var(--hover)}.number{padding-top:.35rem}.tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem}.tags button{padding:.2rem .55rem;color:var(--accent);background:transparent}.tags button[aria-pressed=true]{color:var(--ink);background:var(--paper);border-color:var(--accent)}.tags button:disabled{opacity:1}
+</style>
+</body></html>
